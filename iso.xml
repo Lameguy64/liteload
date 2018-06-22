@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<iso_project image_name="liteload.iso" cue_sheet="liteload.cue">
+
+	<track type="data">
+
+		<identifiers
+			system			="PLAYSTATION"
+			application		="PLAYSTATION"
+			volume			="LITELOAD"
+			volume_set		="LITELOAD"
+			publisher		="MEIDOTEK"
+		/>
+
+		<license file="\PS\CDGEN\LCNSFILE\licensea.dat"/>
+
+		<directory_tree>
+
+			<file name="system.cnf"	type="data" source="system.cnf"/>
+			<file name="liteload.exe" type="data" source="liteload.exe"/>
+
+			<dummy sectors="1024"/>
+
+		</directory_tree>
+
+	</track>
+
+</iso_project>
