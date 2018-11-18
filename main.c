@@ -6,8 +6,13 @@
 #include <libapi.h>
 #include <libsio.h>
 
-#define VERSION "1.0"
+#define VERSION "1.1"
 
+#define set_bpc( r0 ) __asm__ volatile (	\
+	"mtc0	%0, $3;"						\
+	:										\
+	: "r"( r0 ) )
+	
 // Color look-up for the colored bars background
 CVECTOR colortable[] = {
 	{ 255, 255, 255 },
@@ -22,6 +27,7 @@ CVECTOR colortable[] = {
 typedef struct {
     struct EXEC exe_param;
     unsigned int exe_crc32;
+	unsigned int exe_flags;
 } EXPARAM;
 
 typedef struct {
@@ -39,6 +45,10 @@ int y_center;
 
 char* sio_addr = NULL;
 int sio_len,sio_read;
+
+#define PATCH_ENTRY	0xC000
+
+void (*patch_jump)(void) = (void*)0x80010000;
 
 void _sioCallback() {
     
@@ -115,6 +125,18 @@ unsigned int crc32(void* buff, int bytes, unsigned int crc) {
 
 // Main
 
+void serialInit() {
+	
+	// Init serial
+	_sio_control(1, 2, MR_SB_01|MR_CHLEN_8|0x02);
+	_sio_control(1, 3, 115200);
+	_sio_control(1, 1, CR_RXEN|CR_RXIEN|CR_TXEN);
+    
+    // Set a callback
+    Sio1Callback(_sioCallback);
+	
+}
+
 void init() {
     
 	DISPENV disp;
@@ -153,13 +175,8 @@ void init() {
     FntLoad(960, 0);
     FntOpen(0, 0, 320, disp.disp.h, 0, 110);
     
-    // Init serial
-	_sio_control(1, 2, MR_SB_01|MR_CHLEN_8|0x02);
-	_sio_control(1, 3, 115200);
-	_sio_control(1, 1, CR_RXEN|CR_RXIEN|CR_TXEN);
-    
-    // Set a callback
-    Sio1Callback(_sioCallback);
+	serialInit();
+	
 }
 
 // Display stuff
@@ -220,7 +237,8 @@ void drawmessage(char* msg) {
 void loadEXE() {
     
     int i;
-    
+    int* paddr = (int*)PATCH_ENTRY;
+	
     drawbars();
     drawmessage("RECEIVING PARAMETERS...");
     
@@ -249,7 +267,7 @@ void loadEXE() {
         
         if ( sio_read <= sio_len ) {
             
-            setWH(&box, (196*((ONE*sio_read)/sio_len))/ONE, 28);
+            setWH(&box, (196*((ONE*(sio_read>>2))/(sio_len>>2)))/ONE, 28);
             setXY0(&box, 52, y_center-14);
             setRGB0(&box, 255, 255, 0);
             DrawPrim(&box);
@@ -276,26 +294,37 @@ void loadEXE() {
     StopCallback();
 	EnterCriticalSection();
 	
-	Exec(&params.exe_param, 1, 0);
-    
+	paddr[1] = 0x0;		// Enable a loaded debug stub by patching
+	paddr[0] = 0x0;		// the first 2 instructions with nop
+	
+	if( params.exe_flags & 0x1 ) {	// Set BPC if first bit is set
+		set_bpc( params.exe_param.pc0 );
+	}
+	
+	Exec(&params.exe_param, 0, 0);
+	
 }
 
-void loadBIN() {
+void loadBIN(int mode) {
     
     BINPARAM param;
     int i;
     
-    drawbars();
-    drawmessage("RECEIVING PARAMETERS...");
-    
-    while((_sio_control(0, 0, 0) & (SR_TXU|SR_TXRDY)) != (SR_TXU|SR_TXRDY));
+	drawbars();
+	drawmessage("RECEIVING PARAMETERS...");
+	
+	while((_sio_control(0, 0, 0) & (SR_TXU|SR_TXRDY)) != (SR_TXU|SR_TXRDY));
 	_sio_control(1, 4, 'K');
-    
-    setread((char*)&param, sizeof(BINPARAM));
-    while(sio_read < sio_len)  {
+	
+	setread((char*)&param, sizeof(BINPARAM));
+	while(sio_read < sio_len)  {
 		VSync(0);
 	}
     
+	if( mode ) {
+		param.addr = (unsigned int)patch_jump;
+	}
+	
 	setread((char*)param.addr, param.size);
 	
     drawmessage("DOWNLOADING...");
@@ -305,13 +334,13 @@ void loadBIN() {
     setRGB0(&box, 0, 0, 0);
     DrawPrim(&box);
 	
-    while(sio_read < sio_len) {
+    while( sio_read < sio_len ) {
         
         VSync(0);
         
-        if ( sio_read <= sio_len ) {
+        if( sio_read <= sio_len ) {
             
-            setWH(&box, (196*((ONE*sio_read)/sio_len))/ONE, 28);
+            setWH(&box, (196*((ONE*(sio_read>>2))/(sio_len>>2)))/ONE, 28);
             setXY0(&box, 52, y_center-14);
             setRGB0(&box, 255, 255, 0);
             DrawPrim(&box);
@@ -320,7 +349,7 @@ void loadBIN() {
         
     }
     
-    if ( crc32((void*)param.addr, param.size, CRC32_REMAINDER) != param.crc32 ) {
+    if( crc32((void*)param.addr, param.size, CRC32_REMAINDER) != param.crc32 ) {
         
         drawmessage("CHECKSUM ERROR.");
         
@@ -331,6 +360,12 @@ void loadBIN() {
         return;
         
     }
+	
+	if( mode ) {
+		
+		patch_jump();
+		
+	}
     
 }
 
@@ -352,28 +387,34 @@ int main() {
 			
 			VSync(0);
 			
-			if ( timeout > 60 ) {	// timeout routine in case of garbage in serial
+			if( timeout > 60 ) {	// timeout routine in case of garbage in serial
 				memset(command, 0x0, 8);
 				setread(command, 4);
 				timeout = 0;
 			}
 			
-			if ( sio_read ) {
+			if( sio_read ) {
 				timeout++;
 			}
 			
 		}
         
         // Load EXE
-        if ( strncmp(command, "MEXE", 4) == 0 ) {
+        if( strncmp(command, "MEXE", 4) == 0 ) {
             
             loadEXE();
             drawmainscreen();
         
         // Load BIN
-        } else if ( strncmp(command, "MBIN", 4) == 0 ) {
+        } else if( strncmp(command, "MBIN", 4) == 0 ) {
             
-            loadBIN();
+            loadBIN( 0 );
+            drawmainscreen();
+        
+		// Load patch installer
+        } else if( strncmp(command, "MPAT", 4) == 0 ) {
+            
+            loadBIN( 1 );
             drawmainscreen();
             
         }
