@@ -57,8 +57,7 @@ Uploading a binary file.
 	
 Uploading a patch binary (similar to uploading a binary file).
 
-	Patch binaries are basically just raw MIPS processor instructions and is always loaded at $80010000. It is called by the loader as a C function with no arguments as soon as upload
-	and CRC32 verification has completed. The main purpose of this mechanism is for patching debugging stubs to the system kernel.
+	Patch binaries are basically just raw MIPS processor instructions and is always loaded at $80010000. It is called by the loader as a C function with no arguments as soon as it has finished uploading and CRC32 verification has completed. The main purpose of this mechanism is for patching debugging stubs to the system kernel and was implemented during the development of PSn00b Debugger.
 	
 	LITELOAD with patch $C000-$C008 with 0s (which count as nop instructions) just before the execution is transferred to the loaded program. This is to allow debug patches that use the serial port to remain inactive by having the first two instructions jump immediately back to the default kernel hook ($C80) so the loader can continue to use the serial port for loading programs and binary files until it is time to run the loaded program.
 
@@ -72,6 +71,60 @@ Uploading a patch binary (similar to uploading a binary file).
 	[S] *       - Binary data.
 
 	
+## Patcher binaries
+During the development of PSn00b Debugger a so called patch binary mechanism was implemented to allow for debug patches to be installed before uploading a program. Patch binaries are simply little binary executables that are always loaded to 0x80010000 and executed by the loader as a C function in which it can install patches and apply modifications to the kernel space.
+
+A patch binary can be made easily using SDevTC Assembler for MIPS (ASMPSX) and no$psx's built-in assembler:
+```
+org $A0010000
+
+start:
+
+	< do whatever here >
+	
+	; Returns to loader
+	jr	ra
+	nop
+```
+In ASMPSX, assemble as plain binary with /p parameter.
+
+For GNU assembler targeting mipsel-unknown-elf:
+```
+--- In your .ld script ---
+
+MEMORY {
+  ROM(RWX)   : ORIGIN = 0x80010000, LENGTH = 256K
+}
+
+SECTIONS {
+  ROM : {
+    *(.text);
+  }
+}
+
+--- In your .s file ---
+
+.set noreorder		# To make GAS behave a bit more closely to ASMPSX
+
+.section .text
+
+start:
+
+	< do whatever here >
+	
+	# Returns to loader
+	jr	$ra
+	nop
+	
+--- Build with the following commands ---
+
+mipsel-unknown-elf-as patch.s -o patch.o
+mipsel-unknown-elf-ld --nmagic --oformat binary -T patch.ld patch.o -o patch.bin
+
+```
+Registers v0-v1, a0-a3 and t0-t9 can be used freely without having to preserve it through the stack.
+
+
 ## Changelog
 
 **Version 1.1**
