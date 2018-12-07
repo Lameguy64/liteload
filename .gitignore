@@ -7,4 +7,5 @@
 *.obj
 *.bat
 *.bin
+*.o
 test
