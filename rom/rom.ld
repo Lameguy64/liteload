@@ -1,0 +1,10 @@
+MEMORY {
+  ROM(RWX)   : ORIGIN = 0x1f000000, LENGTH = 256K
+  RAM(WXAIL) : ORIGIN = 0x8000C000, LENGTH = 8K
+}
+
+SECTIONS {
+  ROM : {
+    *(.text);
+  }
+}

@@ -74,7 +74,7 @@ Uploading a patch binary (similar to uploading a binary file).
 ## Patcher binaries
 During the development of PSn00b Debugger a so called patch binary mechanism was implemented to allow for debug patches to be installed before uploading a program. Patch binaries are simply little binary executables that are always loaded to 0x80010000 and executed by the loader as a C function in which it can install patches and apply modifications to the kernel space.
 
-A patch binary can be made easily using SDevTC Assembler for MIPS (ASMPSX) and no$psx's built-in assembler:
+A patch binary can be made easily using SDevTC Assembler for MIPS (ASMPSX):
 ```
 org $A0010000
 
@@ -88,7 +88,7 @@ start:
 ```
 In ASMPSX, assemble as plain binary with /p parameter.
 
-For GNU assembler targeting mipsel-unknown-elf:
+You can also use GNU assembler targeting mipsel-unknown-elf:
 ```
 --- In your .ld script ---
 
@@ -127,10 +127,11 @@ Registers v0-v1, a0-a3 and t0-t9 can be used freely without having to preserve i
 
 ## Changelog
 
-**Version 1.1**
+**Version 1.1 (12/07/2018)**
 * Changed protocol when uploading EXEs to allow break on entrypoint for debuggers. This also means you're going to need to use a new version of mcomms that uses the updated protocol. Trying to use an older version of mcomms will likely result in incomplete download or CRC32 error.
 * Added special patch binary support for installing debug patches to the PS1 kernel.
 * Fixed progress bar overflowing when downloading large executables.
+* Included tools and ROMstrap code for creating a cheat cartridge bootable version of LITELOAD.
 
 **Version 1.0 (6/22/2018)**
 * Initial release.

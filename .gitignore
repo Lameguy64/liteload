@@ -6,4 +6,5 @@
 *.cue
 *.obj
 *.bat
+*.bin
 test
