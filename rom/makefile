@@ -10,7 +10,7 @@ romstrap.o: romstrap.s
 	$(AS) $< -o $@
 	
 ../liteload.bin: ../liteload.exe
-	./exe2bin ../liteload.exe
+	./util/exe2bin ../liteload.exe
 
 clean:
 	rm -f romstrap.o rom.bin

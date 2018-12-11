@@ -3,13 +3,15 @@ A very lightweight serial loader tool for the original Sony PlayStation. LITELOA
 
 Use [mcomms](https://github.com/Lameguy64/mcomms) to upload programs to the console.
 
+
 ## Features
 * Supports executable size up to 1816KB (assuming EXE is loaded at 0x80010000).
 * Supports uploading binary files to console memory (careful not to overwrite the loader).
 * CRC32 verification to ensure data integrity.
 * Open source!
 
-## Compiling
+
+## Compiling (loader)
 This tool can only be compiled using the PlayStation PsyQ or Programmer's Tool SDK on Windows. Sorry PSXSDK users...
 
 You will also need the following:
@@ -20,6 +22,16 @@ You will also need the following:
 2. Make sure that the SDK, msys and mkpsxiso binaries are in your PATH variable.
 3. Run "make" to compile (don't use PSYMAKE).
 4. Run "make iso" to build an ISO image.
+
+
+## Compiling (ROM bootable version)
+Creating a ROM version of LITELOAD requires the loader to be compiled first. A GNU toolchain targetting mipsel-unknown-elf is also required.
+
+1. Compile the exe2bin utility in the rom/util directory as a PC side program.
+2. Run the makefile in the rom directory and it should produce a rom.bin file.
+
+The rom.bin file can then be flashed to a cheat cartridge either with X-FLASH or with an external EEPROM programmer.
+
 
 ## Upload protocol
 In case you wanted to write your own loader tool, the following describes LITELOAD's communication protocol. It is designed to be as simple and efficient as possible for easy integration and provides the fastest upload rate possible on the already slow serial interface.
