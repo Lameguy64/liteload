@@ -40,7 +40,9 @@ This assumes you already have PSn00bSDK setup with MSys2.
 
 The ISO image will be generated without license data, as the original Sony
 license data is most likely still copyrighted. You can however patch the
-license data yourself with an old licensing utility.
+license data yourself with a licensing utility.
+
+Obviously a modchip is required in order to boot burned discs.
 
 * All NTSC US systems will accept discs without license data.
 * PAL systems accepts discs without license data up until the SCPH-5552.
