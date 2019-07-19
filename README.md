@@ -113,23 +113,23 @@ Uploading a binary file.
 	
 Uploading a patch binary (similar to uploading a binary file).
 
-	Patch binaries are basically just raw binary programs and is always
-	loaded at 0x80010000. It is called by the loader as a C function
-	as soon as it has finished downloading and checksum verification.
-	The binary is executed outside of critical section mode so you'll
-	have to call the relevant BIOS functions yourself.
-	
-	The main purpose of this mechanism is for patching debug monitors into
-	the system kernel for use with homebrew debuggers. This feature was
-	implemented into this loader during the development of PSn00bDebugger.
-	
-	LITELOAD with patch nops to $C000-$C008 just before the loaded program
-	is executed. This is so that debug monitors that use the serial interface
-	can remain 'inactive' by having the first 2 instructions jump back to the
-	kernel exception handler. The reason for this is so that the loader can
-	still use the serial interface as otherwise the debug monitor would take
-	all incoming bytes as commands before LITELOAD, rendering it unable to
-	receive a PS-EXE.
+Patch binaries are basically just raw binary programs and is always
+loaded at 0x80010000. It is called by the loader as a C function
+as soon as it has finished downloading and checksum verification.
+The binary is executed outside of critical section mode so you'll
+have to call the relevant BIOS functions yourself.
+
+The main purpose of this mechanism is for patching debug monitors into
+the system kernel for use with homebrew debuggers. This feature was
+implemented into this loader during the development of PSn00bDebugger.
+
+LITELOAD with patch nops to $C000-$C008 just before the loaded program
+is executed. This is so that debug monitors that use the serial interface
+can remain 'inactive' by having the first 2 instructions jump back to the
+kernel exception handler. The reason for this is so that the loader can
+still use the serial interface as otherwise the debug monitor would take
+all incoming bytes as commands before LITELOAD, rendering it unable to
+receive a PS-EXE.
 
 	[S] char[4] - Send command: MPAT
 	[R] char[1] - Acknowledge: K
