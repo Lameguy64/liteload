@@ -170,8 +170,8 @@ start:
 
 
 ## Changelog
-**Version 1.2 (06/25/2019)**
-* Ported to PSn00bSDK, reducing the loader down from 38KB to 18KB.
+**Version 1.2 (07/19/2019)**
+* Ported to PSn00bSDK, reducing the loader size from 38KB down to 18KB.
 * Patch binary and ROM building guides updated for ARMIPS.
 * Loader address changed to 0x801faff0 (upper 20KB).
 * Updated exec logic to set stack on loaded programs to 0x801ffff0 
