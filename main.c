@@ -1,12 +1,14 @@
 #include <sys/types.h>
+#include <stdio.h>
+#include <ctype.h>
 #include <string.h>
-#include <libetc.h>
-#include <libgte.h>
-#include <libgpu.h>
-#include <libapi.h>
-#include <libsio.h>
+#include <psxetc.h>
+#include <psxgte.h>
+#include <psxgpu.h>
+#include <psxapi.h>
+#include <psxsio.h>
 
-#define VERSION "1.1"
+#define VERSION "1.2"
 
 #define set_bpc( r0 ) __asm__ volatile (	\
 	"mtc0	%0, $3;"						\
@@ -40,6 +42,10 @@ TILE box;
 char command[8];
 EXPARAM params;
 int y_center;
+
+unsigned short font_tpage;
+unsigned short font_clut;
+
 
 // Serial routines
 
@@ -173,13 +179,46 @@ void init() {
 	PutDrawEnv(&draw);
     
     FntLoad(960, 0);
-    FntOpen(0, 0, 320, disp.disp.h, 0, 110);
+    
+	font_tpage = getTPage(0, 0, 960, 0);
+	font_clut = getClut(960, 32);
     
 	serialInit();
 	
 }
 
 // Display stuff
+
+void drawtext(int x, int y, const char *text) {
+	
+	int i,j;
+	SPRT_8		sprt;
+	DR_TPAGE	tpage;
+	
+	setDrawTPageVal( &tpage, font_tpage );
+	DrawPrim(&tpage);
+	
+	setSprt8(&sprt);
+	setRGB0(&sprt, 128, 128, 128);
+	sprt.clut = font_clut;
+	
+	for(i=0; text[i]!=0x0; i++) {
+		
+		j = toupper(text[i])-33;
+		if( j >= 0 ) {
+			
+			setXY0(&sprt, x, y);
+			setUV0(&sprt, (j&0xf)<<3, (j>>4)<<3);
+			
+			DrawPrim(&sprt);
+			
+		}
+		
+		x += 8;
+		
+	}
+	
+}
 
 void drawbars() {
     
@@ -200,39 +239,38 @@ void drawbars() {
 
 void drawmainscreen() {
     
+	VSync(0);
     drawbars();
 	
     setWH(&box, 209, 27);
-    setXY0(&box, 16, 14);
+    setXY0(&box, 15, 14);
     setRGB0(&box, 0, 0, 0);
     DrawPrim(&box);
     
-    setXY0(&box, 16, 46);
+    setXY0(&box, 15, 46);
     setWH(&box, 87, 11);
     DrawPrim(&box);    
-    
-	FntPrint("\n\n  LITELOAD V" VERSION " BY LAMEGUY64\n");
-    FntPrint("  2018 MEIDO-TEK PRODUCTIONS\n");
-    FntPrint("  BUILT " __DATE__ " " __TIME__ "\n");
-    FntPrint("\n  STAND BY...\n");
-    FntFlush(-1);
-
+	drawtext(2<<3, 2<<3, "LITELOAD " VERSION " BY LAMEGUY64");
+	drawtext(2<<3, 3<<3, "2019 MEIDO-TEK PRODUCTIONS");
+	drawtext(2<<3, 4<<3, "BUILT " __DATE__ " " __TIME__);
+	drawtext(2<<3, 6<<3, "STAND BY...");
+	
 }
 
 void drawmessage(char* msg) {
     
     setWH(&box, 233, 11);
-    setXY0(&box, 16, 14);
+    setXY0(&box, 15, 14);
     setRGB0(&box, 0, 0, 0);
     DrawPrim(&box);
     
-    FntPrint("\n\n  ");
-    FntPrint(msg);
-    FntFlush(-1);
-    
+	drawtext(2<<3, 2<<3, msg);
+	
 }
 
 // Load routines
+
+void SetDefaultExitFromException();
 
 void loadEXE() {
     
@@ -289,17 +327,31 @@ void loadEXE() {
         
     }
     
+	VSync(0);
+	drawbars();
     drawmessage("EXECUTE!");
 	
-    StopCallback();
 	EnterCriticalSection();
+	
+	// Disables serial interrupt (on IMASK)
+	Sio1Callback(NULL);
+	
+	// Required otherwise commercial games won't boot
+	// (perhaps this is what StopCallback() does?)
+	ChangeClearPAD(1);
+	ChangeClearRCnt(3, 1);
+	SetDefaultExitFromException();
 	
 	paddr[1] = 0x0;		// Enable a loaded debug stub by patching
 	paddr[0] = 0x0;		// the first 2 instructions with nop
 	
-	if( params.exe_flags & 0x1 ) {	// Set BPC if first bit is set
+	// Set BPC if first bit is set
+	if( params.exe_flags & 0x1 ) {
 		set_bpc( params.exe_param.pc0 );
 	}
+	
+	params.exe_param.sp 	= 0x801FFFF0;
+	params.exe_param.s_addr	= 0x801FFFF0;
 	
 	Exec(&params.exe_param, 0, 0);
 	

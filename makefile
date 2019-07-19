@@ -1,26 +1,44 @@
-TARGET      = liteload
-TARGET_ADDR	= 0x801D6000
-#TARGET_ADDR	= 0x80180000 #0x801D6000
+TARGET		= liteload.elf
 
-CFILES		= main.c
-CFLAGS		= -Xm -Wall -O2
+CFILES		= $(notdir $(wildcard *.c))
+CPPFILES 	= $(notdir $(wildcard *.cpp))
+AFILES		= $(notdir $(wildcard *.s))
 
-CC			= ccpsx
-ASM			= asmpsx
+OFILES		= $(addprefix build/,$(CFILES:.c=.o) $(CPPFILES:.cpp=.o) $(AFILES:.s=.o))
 
-OFILES		= $(CFILES:.c=.obj)
+PREFIX		= mipsel-unknown-elf-
+LIBDIRS		= -L../psn00bsdk/libpsn00b
+INCLUDE	 	= -I../psn00bsdk/libpsn00b/include
 
-%.obj: %.c
-	$(CC) $(CFLAGS) -c $< -o $@
-    
+INCLUDE	 	+=
+LIBDIRS		+=
+
+LIBS		= -lpsxetc -lpsxgpu -lpsxgte -lpsxspu -lpsxsio -lpsxapi -lc
+
+CFLAGS		= -g -O2 -fno-builtin -fdata-sections -ffunction-sections
+CPPFLAGS	= -g $(CFLAGS) -fno-exceptions
+AFLAGS		= -g -msoft-float
+LDFLAGS		= -g -Ttext=0x801FAFF0 -gc-sections -T /c/mipsel-unknown-elf/mipsel-unknown-elf/lib/ldscripts/elf32elmip.x
+
+CC			= $(PREFIX)gcc
+CXX			= $(PREFIX)g++
+AS			= $(PREFIX)as
+LD			= $(PREFIX)ld
+
 all: $(OFILES)
-	$(CC) -Xo$(TARGET_ADDR) $(CFLAGS) $(OFILES) -o $(TARGET).cpe
-	cpe2x $(TARGET).cpe
-    
+	$(LD) $(LDFLAGS) $(LIBDIRS) $(OFILES) $(LIBS) -o $(TARGET)
+	elf2x -q $(TARGET)
+	
+build/%.o: %.c
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) $(INCLUDE) -c $< -o $@
+	
+build/%.o: %.s
+	@mkdir -p $(dir $@)
+	$(CC) $(AFLAGS) $(INCLUDE) -c $< -o $@
+	
 iso:
-	mkpsxiso -q -y iso.xml
+	mkpsxiso -y -q -o $(TARGET:.elf=.iso) iso.xml
 
 clean:
-	rm -f $(OFILES) $(TARGET).cpe $(TARGET).exe
-
-cleanall: clean
+	rm -rf build $(TARGET) $(TARGET:.elf=.exe) $(TARGET:.elf=.iso)

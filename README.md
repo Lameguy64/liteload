@@ -1,57 +1,101 @@
 # LITELOAD
-A very lightweight serial loader tool for the original Sony PlayStation. LITELOAD also improves upon most loaders by supporting uploading of binary files and CRC32 integrity verification to ensure that any bugs or crashes you experience in your project is not caused by corruption during upload.
+A simple but very lightweight serial loader tool for the PS1. LITELOAD also
+improves upon most loaders by supporting a number of new features such as
+uploading binary files to set memory locations (a feature that was present
+in Caetla and official development tools) and CRC32 data integrity
+verification.
 
-Use [mcomms](https://github.com/Lameguy64/mcomms) to upload programs to the console.
+As of version 1.2, LITELOAD has been ported to the 100% free and open source
+PS1 SDK called PSn00bSDK, making this homebrew loader completely free and is
+also the very first PS1 homebrew to be ported from the official SDK to
+PSn00bSDK without any features lost in the porting process. The move to
+PSn00bSDK also reduced the size of the program by over 50%, as PSn00bSDK's
+libraries are more efficiently written than the official libraries.
+
+Use [mcomms](https://github.com/Lameguy64/mcomms) to upload binary files
+and PS-EXE executables to LITELOAD.
 
 
 ## Features
-* Supports executable size up to 1816KB (assuming EXE is loaded at 0x80010000).
-* Supports uploading binary files to console memory (careful not to overwrite the loader).
-* CRC32 verification to ensure data integrity.
-* Open source!
+* Supports PS-EXE size up to 1964KB (assuming PS-EXE loads at 0x80010000).
+* Supports uploading binary files at set memory locations, be careful not
+  to overwrite the loader.
+* CRC32 checksums to verify data integrity, eliminating the possibility of
+  program bugs caused by data corruption during upload.
+* 100% free and open source as of version 1.2.
 
 
-## Compiling (loader)
-This tool can only be compiled using the PlayStation PsyQ or Programmer's Tool SDK on Windows. Sorry PSXSDK users...
+## Compiling (PS-EXE)
+This tool can only be compiled using PSn00bSDK on Windows or Linux.
 
 You will also need the following:
-* msys or cygwin with make if you prefer the latter.
+* MSys2 & PSn00bSDK.
 * mkpsxiso (get it [here](https://github.com/Lameguy64/mkpsxiso)).
 
-1. Open up the command prompt.
-2. Make sure that the SDK, msys and mkpsxiso binaries are in your PATH variable.
-3. Run "make" to compile (don't use PSYMAKE).
-4. Run "make iso" to build an ISO image.
+This assumes you already have PSn00bSDK setup with MSys2.
+
+1. Open up the MSys2 terminal or Command Prompt.
+2. Run "make" to compile.
+3. Run "make iso" to build the ISO image using mkpsxiso.
+
+The ISO image will be generated without license data, as the original Sony
+license data is most likely still copyrighted. You can however patch the
+license data yourself with an old licensing utility.
+
+* All NTSC US systems will accept discs without license data.
+* PAL systems accepts discs without license data up until the SCPH-5552.
+* All NTSC JP systems will not accept discs without the correct license
+  data until SCPH-9000 and onwards.
+
+If you downloaded a pre-built package of LITELOAD, the ISO image would lack
+license data normally. Be sure to patch the image before burning to a disc
+if you want to include license data.
 
 
-## Compiling (ROM bootable version)
-Creating a ROM version of LITELOAD requires the loader to be compiled first. A GNU toolchain targetting mipsel-unknown-elf is also required.
+## Compiling (cartridge ROM version)
+Creating a ROM version of LITELOAD requires the loader to be compiled first.
 
-1. Compile the exe2bin utility in the rom/util directory as a PC side program.
-2. Run the makefile in the rom directory and it should produce a rom.bin file.
+You will also need the following:
+* GCC compiler targetting your host (for the exe2bin utility)
+* ARMIPS Assembler (get it [here](https://github.com/kingcom/armips)).
 
-The rom.bin file can then be flashed to a cheat cartridge either with X-FLASH or with an external EEPROM programmer.
+1. Compile exe2bin in the rom/util directory as a PC side program.
+2. Run `make` in the rom directory and it should produce a liteload.rom file.
+
+The liteload.rom file can then be flashed to a cheat cartridge with X-FLASH
+or with an external EEPROM programmer. The loader boots instantly through
+this method and is recommended if you use LITELOAD regularly.
 
 
 ## Upload protocol
-In case you wanted to write your own loader tool, the following describes LITELOAD's communication protocol. It is designed to be as simple and efficient as possible for easy integration and provides the fastest upload rate possible on the already slow serial interface.
+If you wish to write your own uploader tool, the following describes LITELOAD's
+communication protocol. The protocol is designed to be as simple and efficient
+as possible for simplified integration and provides the fastest upload rate
+possible on the already slow serial interface.
 
-LITELOAD always communicates at 115200 baud, 8 data bits, 1 stop bit, no parity and no handshaking.
+LITELOAD always communicates at 115200 baud, 8 data bits, 1 stop bit, no parity
+and no handshaking, as serial cables for connecting to the PS1 typically provide
+only TX, RX and ground.
 
 Legend:
-	[S] - Send.
-	[R] - Receive.
-	[D] - Delay.
+
+	[S]  - Send.
+	[R]  - Receive.
+	[D]  - Delay.
+	int  - 32-bit word.
+	char - 8-bit byte.
 
 Uploading an executable:
 
 	[S] char[4] - Send command: MEXE
 	[R] char[1] - Acknowledge: K
 	[S] int[16] - Executable parameters & checksum.
-					First 15 ints are EXEC parameters (same format as EXEC in SDK).
-					The 16th int is the CRC32 checksum.
+					First 15 elements are EXEC parameters (same format as
+					EXEC struct in SDK). The 16th element in the array is
+					the CRC32 checksum.
 	[S] int[1]	- Executable flags.
-					bit 0: Set BPC on executable entrypoint.
+					bit 0   : Set BPC on executable entrypoint (for debug
+					          monitors installed through a patch binary).
 					bit 1-31: reserved.
 	[D] 20ms
 	[S] *       - Executable data.
@@ -69,9 +113,23 @@ Uploading a binary file.
 	
 Uploading a patch binary (similar to uploading a binary file).
 
-	Patch binaries are basically just raw MIPS processor instructions and is always loaded at $80010000. It is called by the loader as a C function with no arguments as soon as it has finished uploading and CRC32 verification has completed. The main purpose of this mechanism is for patching debugging stubs to the system kernel and was implemented during the development of PSn00b Debugger.
+	Patch binaries are basically just raw binary programs and is always
+	loaded at 0x80010000. It is called by the loader as a C function
+	as soon as it has finished downloading and checksum verification.
+	The binary is executed outside of critical section mode so you'll
+	have to call the relevant BIOS functions yourself.
 	
-	LITELOAD with patch $C000-$C008 with 0s (which count as nop instructions) just before the execution is transferred to the loaded program. This is to allow debug patches that use the serial port to remain inactive by having the first two instructions jump immediately back to the default kernel hook ($C80) so the loader can continue to use the serial port for loading programs and binary files until it is time to run the loaded program.
+	The main purpose of this mechanism is for patching debug monitors into
+	the system kernel for use with homebrew debuggers. This feature was
+	implemented into this loader during the development of PSn00bDebugger.
+	
+	LITELOAD with patch nops to $C000-$C008 just before the loaded program
+	is executed. This is so that debug monitors that use the serial interface
+	can remain 'inactive' by having the first 2 instructions jump back to the
+	kernel exception handler. The reason for this is so that the loader can
+	still use the serial interface as otherwise the debug monitor would take
+	all incoming bytes as commands before LITELOAD, rendering it unable to
+	receive a PS-EXE.
 
 	[S] char[4] - Send command: MPAT
 	[R] char[1] - Acknowledge: K
@@ -84,66 +142,52 @@ Uploading a patch binary (similar to uploading a binary file).
 
 	
 ## Patcher binaries
-During the development of PSn00b Debugger a so called patch binary mechanism was implemented to allow for debug patches to be installed before uploading a program. Patch binaries are simply little binary executables that are always loaded to 0x80010000 and executed by the loader as a C function in which it can install patches and apply modifications to the kernel space.
+During the development of PSn00bDebugger a patch binary mechanism was 
+implemented to allow for debug monitors to be patched to the kernel before
+uploading a program, to allow for debugging capabilities.
 
-A patch binary can be made easily using SDevTC Assembler for MIPS (ASMPSX):
+Patch binaries are simply little binary programs that are always loaded
+to 0x80010000 and executed by the loader as a C function, from there the
+patch can do modifications to the kernel.
+
+A patch binary is simply raw executable binary code and can be created
+easily using ARMIPS:
 ```
-org $A0010000
+.psx
+
+.create "patch.bin", 0x80010000
 
 start:
 
-	< do whatever here >
+	< do whatever you need to do here >
 	
-	; Returns to loader
+	; Returns to loader (be sure ra is saved and restored before this point)
 	jr	ra
 	nop
-```
-In ASMPSX, assemble as plain binary with /p parameter.
-
-You can also use GNU assembler targeting mipsel-unknown-elf:
-```
---- In your .ld script ---
-
-MEMORY {
-  ROM(RWX)   : ORIGIN = 0x80010000, LENGTH = 256K
-}
-
-SECTIONS {
-  ROM : {
-    *(.text);
-  }
-}
-
---- In your .s file ---
-
-.set noreorder		# To make GAS behave a bit more closely to ASMPSX
-
-.section .text
-
-start:
-
-	< do whatever here >
 	
-	# Returns to loader
-	jr	$ra
-	nop
-	
---- Build with the following commands ---
-
-mipsel-unknown-elf-as patch.s -o patch.o
-mipsel-unknown-elf-ld --nmagic --oformat binary -T patch.ld patch.o -o patch.bin
-
+.close
 ```
-Registers v0-v1, a0-a3 and t0-t9 can be used freely without having to preserve it through the stack.
 
 
 ## Changelog
+**Version 1.2 (06/25/2019)**
+* Ported to PSn00bSDK, reducing the loader down from 38KB to 18KB.
+* Patch binary and ROM building guides updated for ARMIPS.
+* Loader address changed to 0x801faff0 (upper 20KB).
+* Updated exec logic to set stack on loaded programs to 0x801ffff0 
+  (top of main RAM which is standard).
+* Improved readme file.
 
 **Version 1.1 (12/07/2018)**
-* Changed protocol when uploading EXEs to allow break on entrypoint for debuggers. This also means you're going to need to use a new version of mcomms that uses the updated protocol. Trying to use an older version of mcomms will likely result in incomplete download or CRC32 error.
-* Added special patch binary support for installing debug patches to the PS1 kernel.
-* Fixed progress bar overflowing when downloading large executables.
-* Included tools and ROMstrap code for creating a cheat cartridge bootable version of LITELOAD.
+* Changed protocol when uploading EXEs to allow break on entrypoint for
+  debuggers. This also means you're going to need to use a new version of
+  mcomms that uses the updated protocol. Trying to use an older version of
+  mcomms will likely result in incomplete download or CRC32 error.
+* Added special patch binary support for installing debug patches to the
+  PS1 kernel.
+* Fixed progress bar overflowing when uploading large executables.
+* Included tools and ROMstrap code for creating a cheat cartridge bootable
+  version of LITELOAD.
 
 **Version 1.0 (6/22/2018)**
 * Initial release.

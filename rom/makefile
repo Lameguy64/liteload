@@ -1,13 +1,7 @@
-PREFIX		= mipsel-unknown-elf-
+ASM			= armips
 
-AS			= $(PREFIX)as
-LD			= $(PREFIX)ld
-
-all: ../liteload.bin romstrap.o
-	$(LD) --nmagic --oformat binary -T rom.ld romstrap.o -o rom.bin
-	
-romstrap.o: romstrap.s
-	$(AS) $< -o $@
+all: ../liteload.bin liteload.rom
+	$(ASM) -sym liteload.sym romstrap.asm
 	
 ../liteload.bin: ../liteload.exe
 	./util/exe2bin ../liteload.exe
