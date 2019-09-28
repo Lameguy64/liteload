@@ -1,4 +1,4 @@
-BOOT=cdrom:\liteload.exe;1
+BOOT=cdrom:\liteload.exe;1 arg1 arg2 arg3
 TCB=4
 EVENT=10
 STACK=801FFFF0

@@ -58,7 +58,7 @@ if you want to include license data.
 Creating a ROM version of LITELOAD requires the loader to be compiled first.
 
 You will also need the following:
-* GCC compiler targetting your host (for the exe2bin utility)
+* GCC compiler targeting your host (for the exe2bin utility)
 * ARMIPS Assembler (get it [here](https://github.com/kingcom/armips)).
 
 1. Compile exe2bin in the rom/util directory as a PC side program.
@@ -70,7 +70,7 @@ this method and is recommended if you use LITELOAD regularly.
 
 
 ## Upload protocol
-If you wish to write your own uploader tool, the following describes LITELOAD's
+If you wish to write your own upload tool, the following describes LITELOAD's
 communication protocol. The protocol is designed to be as simple and efficient
 as possible for simplified integration and provides the fastest upload rate
 possible on the already slow serial interface.
@@ -172,6 +172,10 @@ start:
 
 
 ## Changelog
+**Version 1.3 (09/28/2019)**
+* Updated debug patch activation logic. Now writes 4 nops from 0xC000
+  instead of 3 for the new debug monitor patch of PSn00bDEBUG.
+
 **Version 1.2 (07/19/2019)**
 * Ported to PSn00bSDK, reducing the loader size from 38KB down to 18KB.
 * Patch binary and ROM building guides updated for ARMIPS.

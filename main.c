@@ -1,5 +1,6 @@
 #include <sys/types.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <ctype.h>
 #include <string.h>
 #include <psxetc.h>
@@ -8,7 +9,7 @@
 #include <psxapi.h>
 #include <psxsio.h>
 
-#define VERSION "1.2"
+#define VERSION "1.3"
 
 #define set_bpc( r0 ) __asm__ volatile (	\
 	"mtc0	%0, $3;"						\
@@ -38,23 +39,25 @@ typedef struct {
     unsigned int crc32;
 } BINPARAM;
 
-TILE box;
-char command[8];
-EXPARAM params;
-int y_center;
+TILE	box;
+char	command[8];
+EXPARAM	params;
+int		y_center;
 
 unsigned short font_tpage;
 unsigned short font_clut;
+
+int patch_executed = false;
+
+#define PATCH_ENTRY	0xA000C000
+
+void (*patch_jump)(void) = (void*)0x80010000;
 
 
 // Serial routines
 
 char* sio_addr = NULL;
 int sio_len,sio_read;
-
-#define PATCH_ENTRY	0xC000
-
-void (*patch_jump)(void) = (void*)0x80010000;
 
 void _sioCallback() {
     
@@ -195,7 +198,7 @@ void drawtext(int x, int y, const char *text) {
 	SPRT_8		sprt;
 	DR_TPAGE	tpage;
 	
-	setDrawTPageVal( &tpage, font_tpage );
+	setDrawTPage(&tpage, 0, 0, font_tpage);
 	DrawPrim(&tpage);
 	
 	setSprt8(&sprt);
@@ -275,7 +278,7 @@ void SetDefaultExitFromException();
 void loadEXE() {
     
     int i;
-    int* paddr = (int*)PATCH_ENTRY;
+    volatile int* paddr = (volatile int*)PATCH_ENTRY;
 	
     drawbars();
     drawmessage("RECEIVING PARAMETERS...");
@@ -342,8 +345,12 @@ void loadEXE() {
 	ChangeClearRCnt(3, 1);
 	SetDefaultExitFromException();
 	
-	paddr[1] = 0x0;		// Enable a loaded debug stub by patching
-	paddr[0] = 0x0;		// the first 2 instructions with nop
+	if( patch_executed ) {
+		paddr[0] = 0x0;		// Enable a loaded debug stub by patching
+		paddr[1] = 0x0;		// the first 4 instructions with nop
+		paddr[2] = 0x0;		// (updated for new PSn00bDEBUG monitor)
+		paddr[3] = 0x0;
+	}
 	
 	// Set BPC if first bit is set
 	if( params.exe_flags & 0x1 ) {
@@ -375,6 +382,7 @@ void loadBIN(int mode) {
     
 	if( mode ) {
 		param.addr = (unsigned int)patch_jump;
+		patch_executed = true;
 	}
 	
 	setread((char*)param.addr, param.size);

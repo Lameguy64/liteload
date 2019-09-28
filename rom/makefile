@@ -1,6 +1,6 @@
 ASM			= armips
 
-all: ../liteload.bin liteload.rom
+all: ../liteload.bin
 	$(ASM) -sym liteload.sym romstrap.asm
 	
 ../liteload.bin: ../liteload.exe
